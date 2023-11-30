@@ -1,0 +1,109 @@
+package org.example;
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+class PageReplacement {
+
+    // Algoritmo FIFO
+    static int fifo(List<Integer> pages, int frames) {
+        int pageFaults = 0;
+        List<Integer> frameList = new ArrayList<>();
+        for (int page : pages) {
+            if (!frameList.contains(page)) {
+                if (frameList.size() < frames) {
+                    frameList.add(page);
+                } else {
+                    frameList.remove(0);
+                    frameList.add(page);
+                }
+                pageFaults++;
+            }
+        }
+        return pageFaults;
+    }
+
+    // Algoritmo Aging
+    static int aging(List<Integer> pages, int frames) {
+        int pageFaults = 0;
+        List<Integer> frameList = new ArrayList<>();
+        List<Integer> agingCounters = new ArrayList<>();
+        List<Integer> ageBits = new ArrayList<>();
+        for (int i = 0; i < frames; i++) {
+            agingCounters.add(0);
+            ageBits.add(0);
+        }
+
+        for (int page : pages) {
+            if (!frameList.contains(page)) {
+                pageFaults++;
+                if (frameList.size() < frames) {
+                    frameList.add(page);
+                    int index = frameList.indexOf(page);
+                    agingCounters.set(index, 0);
+                    ageBits.set(index, 128);
+                } else {
+                    int minCounter = agingCounters.get(0);
+                    int minIndex = 0;
+                    for (int i = 1; i < frames; i++) {
+                        if (agingCounters.get(i) < minCounter) {
+                            minCounter = agingCounters.get(i);
+                            minIndex = i;
+                        }
+                    }
+                    frameList.set(minIndex, page);
+                    agingCounters.set(minIndex, 0);
+                    ageBits.set(minIndex, 128);
+                }
+            } else {
+                int index = frameList.indexOf(page);
+                int bit = ageBits.get(index);
+                ageBits.set(index, bit >> 1);
+                ageBits.set(index, ageBits.get(index) | 128);
+            }
+            for (int i = 0; i < frameList.size(); i++) {
+                agingCounters.set(i, (agingCounters.get(i) >> 1) + ((ageBits.get(i) >> 7) * 128));
+            }
+        }
+        return pageFaults;
+    }
+
+
+
+    public static void main(String[] args) {
+        int numReferences = 1000; // Altere o número de referências conforme necessário
+        List<Integer> pageReferences = new ArrayList<>();
+        Random random = new Random();
+
+        // Gerando referências de páginas aleatórias
+        for (int i = 0; i < numReferences; i++) {
+            pageReferences.add(random.nextInt(10)); // Páginas de 0 a 9
+        }
+
+        // Salvando sequência de referências em um arquivo
+        try {
+            FileWriter writer = new FileWriter("referencias_paginas.txt");
+            for (int ref : pageReferences) {
+                writer.write(ref + "\n");
+            }
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // Testando para diferentes números de molduras de páginas
+        int[] numFramesRange = {1, 2, 3, 4, 5, 6, 7, 8, 9}; // Varie o número de molduras conforme necessário
+
+        for (int numFrames : numFramesRange) {
+            int fifoFaults = fifo(pageReferences, numFrames);
+            int agingFaults = aging(pageReferences, numFrames);
+            System.out.println("Número de molduras: " + numFrames);
+            System.out.println("FIFO - Faltas por "+ numReferences +" referências: " + fifoFaults);
+            System.out.println("Aging - Faltas por "+ numReferences +" referências: " + agingFaults);
+            System.out.println("-----");
+        }
+    }
+}
